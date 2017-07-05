@@ -109,6 +109,7 @@ def show_wordcloud(lst, subset="all", feature="keywords"):
     """
     Displays a wordcloud given a list of words
     """
+
     all_string = ' '.join(map(str, lst))
     wordcloud = WordCloud(background_color='white',
                           width=2400,
@@ -125,6 +126,9 @@ def show_wordcloud(lst, subset="all", feature="keywords"):
 # given a cluster number, can we find the keywords in the papers in the cluster
 def find_keywords(cluster_number=0, all_=False):
     """
+    Searches through dataset given either a cluster number or the entire set for \
+    keywords assigned to each publication.
+
     Returns one value:
         1. A list of all keywords
     """
@@ -169,6 +173,9 @@ def test_find_keywords():
 
 def find_titles(cluster_number=0, all_=False):
     """
+    Searches through dataset given either a cluster number or the entire set for \
+    words in titles and then processes/stems them.
+
     Returns one value:
         1. Filtered list of words
     """
