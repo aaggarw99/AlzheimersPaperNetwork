@@ -7,10 +7,11 @@ from sklearn import svm
 from pony.orm import *
 from wordcloud import WordCloud, STOPWORDS
 import pickle
+import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 import collections
-
+from stemming.porter2 import stem
 
 # handles csv correlating clusters to publication_id's
 
@@ -78,20 +79,41 @@ class Citations(db_paper.Entity):
 db_paper.bind('sqlite', 'PaperNetworkSqlite.alzheimer.db')
 db_paper.generate_mapping()
 
+
+def nlp(words):
+    """
+    Inputs a list of words and returns a list of filtered words
+    """
+    filtered = []
+
+    stopWords = set(stopwords.words('english'))
+    for w in words:
+        if w.lower() not in stopWords:
+            x = w.lower()
+            x = x.replace("’", "'")
+            x = x.replace("'s", "")
+            x = x.replace(":", "")
+            if nltk.stem.WordNetLemmatizer().lemmatize(x, 'v') == x:
+                x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'n')
+            else:
+                x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'v')
+            filtered.append(x)
+    return filtered
+
 # finds most common element in a list
 def most_common(lst, ct=5):
     counter = collections.Counter(lst)
     print(counter.most_common(ct), "\n")
 
-def show_wordcloud(all_string, subset="all", feature="keywords"):
+def show_wordcloud(lst, subset="all", feature="keywords"):
     """
-    Displays a wordcloud given a concatanated string separating words with spaces
+    Displays a wordcloud given a list of words
     """
+    all_string = ' '.join(map(str, lst))
     wordcloud = WordCloud(background_color='white',
                           width=2400,
                           height=1500
                           ).generate(all_string)
-
     plt.imshow(wordcloud)
     plt.axis('off')
     if subset == "all":
@@ -100,28 +122,11 @@ def show_wordcloud(all_string, subset="all", feature="keywords"):
         plt.title("Most common "+feature+" in cluster: "+subset)
     plt.show()
 
-
-
-# querying
-# with db_session:
-    # select(count(w.word) for w in Words)[:].show()
-    # select(count(p.id) for p in Papers)[:].show()
-    # string = select((p.id, p.keywords, p.month) for p in Papers if p.year == 2017 and p.month == 2)
-    # x = select(p.keywords for p in Papers if p.id == 5218855)
-    # x = Papers.get(id=5218855)
-    # y = Papers.get(id=5325057)
-    #
-    # keywordsx = x.keywords.split(",")[:]
-    # keywordsy = y.keywords.split(",")[:]
-
-    # Papers.select_by_sql("SELECT keywords FROM Papers GROUP BY keywords ORDER BY COUNT(*) DESC LIMIT 1").show()
-
 # given a cluster number, can we find the keywords in the papers in the cluster
 def find_keywords(cluster_number=0, all_=False):
     """
-    Returns two values:
-        - A list of all keywords
-        - A concatanated string of all keywords
+    Returns one value:
+        1. A list of all keywords
     """
     all_words = []
 
@@ -131,11 +136,7 @@ def find_keywords(cluster_number=0, all_=False):
             for k in (select(p.keywords for p in Papers if p.keywords != None)):
                 all_words += k.split(",")
 
-        all_str = ' '.join(map(str, all_words))
-
-        return all_words, all_str
-
-    # els
+        return all_words
 
     paper_list = organized_by_cluster[cluster_number]
     for paper_id in paper_list:
@@ -148,60 +149,41 @@ def find_keywords(cluster_number=0, all_=False):
             # adds temp to all_words
             all_words += temp
 
-    # creates a string of all keywords (used for wordcloud)
-    all_str = ' '.join(map(str, all_words))
-
     # returns all words in a list format and in a concatanated string
-    return all_words, all_str
+    return all_words
 
 def test_find_keywords():
     # get all keywords
-    all_keywords = find_keywords(all_=True)[1]
+    all_keywords = find_keywords(all_=True)
+    # get most common keyword in database
+    most_common(all_keywords, 3)
     # display wordcloud of all keywords
     show_wordcloud(all_keywords)
 
     # get list of keywords for cluster 66
-    keywords_66_list = find_keywords(66)[0]
-    # get concatanated string of keywords for cluster 66
-    keywords_66_string = find_keywords(66)[1]
-    print(most_common(keywords_66_list))
+    keywords_66_list = find_keywords(66)
+    # get most common keyword in cluster 66
+    most_common(keywords_66_list, 3)
     # display wordcloud of keywords in cluster 66
-    show_wordcloud(keywords_66_string, "66")
-
-# test_find_keywords()
+    show_wordcloud(keywords_66_list, "66")
 
 def find_titles(cluster_number=0, all_=False):
     """
-    Returns three values:
-        1. List of unprocessed title strings
-        2. String of unprocessed title strings
-        3. List of processed title words
-        4. String of processed title words
+    Returns one value:
+        1. Filtered list of words
     """
     all_titles = []
-    all_title_str = ""
-
     all_title_words = []
-
-    all_title_words_pro = []
-    all_title_words_pro_str = ""
 
     # if looking at all cluster information
     if all_ == True:
         with db_session:
             all_titles = select(p.title for p in Papers if p.title != None or p.title != "")[:]
-            all_titles = [x.lower() for x in all_titles]
-            all_title_str = ' '.join(map(str, all_titles))
             for t in all_titles:
                 all_title_words += t.split(' ')
-            stopWords = set(stopwords.words('english'))
 
-            for w in all_title_words:
-                if w not in stopWords:
-                    all_title_words_pro.append(w)
-            all_title_words_pro_str = ' '.join(map(str, all_title_words_pro))
-
-        return all_titles, all_title_str, all_title_words_pro, all_title_words_pro_str
+        # Natural Language Processing + Return
+        return nlp(all_title_words)
 
     # if looking at a certain cluster
     paper_list = organized_by_cluster[cluster_number]
@@ -211,46 +193,25 @@ def find_titles(cluster_number=0, all_=False):
             temp_title = select(p.title for p in Papers if p.id == paper_id and p.title != None and p.title!="")[:]
             all_titles += temp_title
 
-    # filtering for stopwaords
     for t in all_titles:
         all_title_words += t.split(' ')
-    stopWords = set(stopwords.words('english'))
 
-    for w in all_title_words:
-        if w.lower() not in stopWords:
-            all_title_words_pro.append(w.lower())
-
-    # concatanate
-    all_title_str = ' '.join(map(str, all_titles))
-
-    # concatanate
-    all_title_words_pro_str = ' '.join(map(str, all_title_words_pro))
-
-    # returns all words in a list format and in a concatanated string
-    return all_titles, all_title_str, all_title_words_pro, all_title_words_pro_str
-
+    # Natural Language Processing + Return
+    return nlp(all_title_words)
 
 def test_find_titles():
     # For entire dataset
-    all_t, all_t_str, all_t_w_p, all_t_w_p_str = find_titles(all_=True)
-
-    # Unprocessed
-    most_common(all_t, 7) # most common title
-    # show_wordcloud(all_t_str, feature="titles")
-
-    # Processed
-    most_common(all_t_w_p, 7) # most common words in titles
-    # show_wordcloud(all_t_w_p_str, feature="words in titles")
+    # Get a list of words in titles (processed)
+    all_t_w_p = find_titles(all_=True)
+    # most common words in titles
+    most_common(all_t_w_p, 7)
+    # shows wordcloud
+    show_wordcloud(all_t_w_p, feature="words in titles")
 
     # For Cluster 66
-    all_t_66, all_t_str_66, all_t_w_p_66, all_t_w_p_str_66 = find_titles(66)
-
-    # Unprocessed
-    most_common(all_t_66, 7) # most common title
-    # show_wordcloud(all_t_str_66, feature="titles", subset="66")
-
-    # Processed
+    # Get a list of words in titles in Cluster 66 (processed)
+    all_t_w_p_66 = find_titles(66)
+    # most common words in cluster 66 titles
     most_common(all_t_w_p_66, 7)
-    # show_wordcloud(all_t_w_p_str_66, feature="words in titles", subset="66")
-
-# test_find_titles()
+    # shows wordcloud
+    show_wordcloud(all_t_w_p_66, feature="words in titles", subset="66")
