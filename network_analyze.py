@@ -6,15 +6,35 @@ from sklearn import datasets
 from sklearn import svm
 from pony.orm import *
 from wordcloud import WordCloud, STOPWORDS
+import pickle
+
+# handles csv correlating clusters to publication_id's
+
+df = pd.read_csv("pubmedID_min5clusters_v2.csv", names=['PubID','ClusterNo'])
+organized_by_cluster = []
 
 
-# df = pd.read_csv("pubmedID_min5clusters_v2.csv", names=['PubID','ClusterNo'])
-# print(df.head())
+def parse_clustered_publications():
+    org_list = []
+    # dict ClusterNo : {PubID-1, PubID-2, ... , PubID-n}
+    org_dict = dict()
+    for j in range(df["ClusterNo"].min(), df['ClusterNo'].max()):
+        org_list.clear()
+        org_list.append(df.loc[df['ClusterNo'] == j]['PubID'].values.tolist())
+        org_dict[j] = org_list[0]
+        # organized_by_cluster.append(temp_list)
+    pickle.dump(org_dict, open("organized_dict.pickle", "wb"))
 
-# df.rename(columns={"ClusterNo":"LabelInt"}, inplace=True)
+def get_pickle(filename):
+    return pickle.load(open(filename, "rb"))
+
+parse_clustered_publications()
+organized_by_cluster = get_pickle("organized_dict.pickle")
+
+
+# handles database with words and papers
 
 db_word = Database()
-
 
 class Words(db_word.Entity):
     _table_ = "words"
@@ -26,7 +46,6 @@ class PaperWordCount(db_word.Entity):
     paper = PrimaryKey(int) # PMCID as integer
     word = Required(int)
     count = Required(int)
-
 
 db_word.bind('sqlite', "wordfreq.sqlite")
 db_word.generate_mapping()
@@ -50,23 +69,23 @@ class Citations(db_paper.Entity):
 db_paper.bind('sqlite', 'PaperNetworkSqlite.alzheimer.db')
 db_paper.generate_mapping()
 
-all_words = []
+def show_wordcloud():
+    all_words = []
 
-with db_session:
-    for k in (select(p.keywords for p in Papers if p.keywords != None)):
-        all_words += k.split(",")
+    with db_session:
+        for k in (select(p.keywords for p in Papers if p.keywords != None)):
+            all_words += k.split(",")
 
-all_str = ' '.join(map(str, all_words))
+    all_str = ' '.join(map(str, all_words))
 
+    wordcloud = WordCloud(background_color='white',
+                          width=2400,
+                          height=1500
+                          ).generate(all_str)
 
-wordcloud = WordCloud(background_color='white',
-                      width=2400,
-                      height=1500
-                      ).generate(all_str)
-
-plt.imshow(wordcloud)
-plt.axis('off')
-plt.show()
+    plt.imshow(wordcloud)
+    plt.axis('off')
+    plt.show()
 
 # querying
 # with db_session:
