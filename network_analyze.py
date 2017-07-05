@@ -15,6 +15,10 @@ organized_by_cluster = []
 
 
 def parse_clustered_publications():
+    """
+    Stores and dumps a dictionary of all publications to their respective \
+    clusters
+    """
     org_list = []
     # dict ClusterNo : {PubID-1, PubID-2, ... , PubID-n}
     org_dict = dict()
@@ -25,10 +29,11 @@ def parse_clustered_publications():
         # organized_by_cluster.append(temp_list)
     pickle.dump(org_dict, open("organized_dict.pickle", "wb"))
 
+
 def get_pickle(filename):
     return pickle.load(open(filename, "rb"))
 
-parse_clustered_publications()
+# parse_clustered_publications()
 organized_by_cluster = get_pickle("organized_dict.pickle")
 
 
@@ -69,7 +74,35 @@ class Citations(db_paper.Entity):
 db_paper.bind('sqlite', 'PaperNetworkSqlite.alzheimer.db')
 db_paper.generate_mapping()
 
-def show_wordcloud():
+# finds most common element in a list
+def most_common(lst):
+    return max(set(lst), key=lst.count)
+
+
+def show_wordcloud(lst, subset="all"):
+    """
+    Displays a wordcloud given a concatanated string separating words with spaces
+    """
+    wordcloud = WordCloud(background_color='white',
+                          width=2400,
+                          height=1500
+                          ).generate(lst)
+
+    plt.imshow(wordcloud)
+    plt.axis('off')
+    if subset == "all":
+        plt.title("Most common keywords in the entire database")
+    else:
+        plt.title("Most common keywords in cluster: "+subset)
+    plt.show()
+
+
+def get_all_keywords():
+    """
+    Returns two values:
+        - A list of all keywords
+        - A concatanated string of all keywords
+    """
     all_words = []
 
     with db_session:
@@ -78,14 +111,8 @@ def show_wordcloud():
 
     all_str = ' '.join(map(str, all_words))
 
-    wordcloud = WordCloud(background_color='white',
-                          width=2400,
-                          height=1500
-                          ).generate(all_str)
-
-    plt.imshow(wordcloud)
-    plt.axis('off')
-    plt.show()
+    return all_words, all_str
+show_wordcloud(get_all_keywords()[1])
 
 # querying
 # with db_session:
@@ -101,6 +128,32 @@ def show_wordcloud():
 
     # Papers.select_by_sql("SELECT keywords FROM Papers GROUP BY keywords ORDER BY COUNT(*) DESC LIMIT 1").show()
 
-# given a cluster number, can we find the most common keywords in the papers in the cluster
-def most_common_keywords_in_cluster(cluster_number):
+# given a cluster number, can we find the keywords in the papers in the cluster
+def find_keywords_in_cluster(cluster_number):
+    """
+    Returns two values:
+        - A list of all keywords
+        - A concatanated string of all keywords
+    """
     paper_list = organized_by_cluster[cluster_number]
+    all_words = []
+    for paper_id in paper_list:
+        with db_session:
+            # gets a list of all keywords given a paper_id
+            temp = select(p.keywords for p in Papers if p.id == paper_id and p.keywords != None)[:]
+            if temp:
+                # separates the concatanated string into individual list elements by commas
+                temp = temp[0].split(",")
+            # adds temp to all_words
+            all_words += temp
+
+    # creates a string of all keywords (used for wordcloud)
+    all_str = ' '.join(map(str, all_words))
+
+    # returns all words in a list format and in a concatanated string
+    return all_words, all_str
+
+keywords_66_list = find_keywords_in_cluster(66)[0]
+keywords_66_string = find_keywords_in_cluster(66)[1]
+print(most_common(keywords_66_list))
+show_wordcloud(keywords_66_string, "66")
