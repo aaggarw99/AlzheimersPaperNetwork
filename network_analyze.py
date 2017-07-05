@@ -100,3 +100,7 @@ def show_wordcloud():
     # keywordsy = y.keywords.split(",")[:]
 
     # Papers.select_by_sql("SELECT keywords FROM Papers GROUP BY keywords ORDER BY COUNT(*) DESC LIMIT 1").show()
+
+# given a cluster number, can we find the most common keywords in the papers in the cluster
+def most_common_keywords_in_cluster(cluster_number):
+    paper_list = organized_by_cluster[cluster_number]
