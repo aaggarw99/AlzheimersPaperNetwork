@@ -12,9 +12,9 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 import collections
 from stemming.porter2 import stem
+import re
 
 # handles csv correlating clusters to publication_id's
-
 df = pd.read_csv("pubmedID_min5clusters_v2.csv", names=['PubID','ClusterNo'])
 organized_by_cluster = []
 
@@ -40,7 +40,7 @@ def get_pickle(filename):
 
 # parse_clustered_publications()
 organized_by_cluster = get_pickle("organized_dict.pickle")
-
+# print(organized_by_cluster)
 
 # handles database with words and papers
 
@@ -79,7 +79,7 @@ class Citations(db_paper.Entity):
 db_paper.bind('sqlite', 'PaperNetworkSqlite.alzheimer.db')
 db_paper.generate_mapping()
 
-
+# Natural Word Processing
 def nlp(words):
     """
     Inputs a list of words and returns a list of filtered words
@@ -87,17 +87,19 @@ def nlp(words):
     filtered = []
 
     stopWords = set(stopwords.words('english'))
+    words = [w for w in words if w.lower() not in stopWords]
+    words = [w for w in words if re.match("[a-zA-Z]{2,}", w)]
+    words = [re.sub(r'[^\w\s]','',w) for w in words]
     for w in words:
-        if w.lower() not in stopWords:
-            x = w.lower()
-            x = x.replace("’", "'")
-            x = x.replace("'s", "")
-            x = x.replace(":", "")
-            if nltk.stem.WordNetLemmatizer().lemmatize(x, 'v') == x:
-                x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'n')
-            else:
-                x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'v')
-            filtered.append(x)
+        x = w
+        x = x.replace("’", "'")
+        x = x.replace("'s", "")
+        x = x.replace(":", "")
+        if nltk.stem.WordNetLemmatizer().lemmatize(x, 'v') == x:
+            x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'n')
+        else:
+            x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'v')
+        filtered.append(x)
     return filtered
 
 # finds most common element in a list
@@ -222,3 +224,60 @@ def test_find_titles():
     most_common(all_t_w_p_66, 7)
     # shows wordcloud
     show_wordcloud(all_t_w_p_66, feature="words in titles", subset="66")
+
+def find_abstract(cluster_number=0, all_=False):
+    all_abstract = []
+    all_abstract_words = []
+
+    if all_ == True:
+        with db_session:
+            all_abstract = select(p.abstract for p in Papers if p.abstract != None and p.abstract != "")[:]
+            for a in all_abstract:
+                all_abstract_words += a.split(' ')
+
+        # Natural Language Processing + Return
+        return nlp(all_abstract_words)
+
+    paper_list = organized_by_cluster[cluster_number]
+    for paper_id in paper_list:
+        with db_session:
+            # gets the abstract of a given a paper_id
+            temp_abstract = select(p.abstract for p in Papers if p.id == paper_id  and p.abstract != None and p.abstract!="")[:]
+            all_abstract += temp_abstract
+
+    for a in all_abstract:
+        all_abstract_words += a.split(' ')
+
+    return nlp(all_abstract_words)
+
+
+abstract = find_abstract(3390)
+
+def student_t_analyze(lst):
+    """
+    Uses student_t distribution to analyze a list of words by splitting them into \
+    tuples of 3 elements: eg. (a, b, c), (b, c, d), ...
+
+    The distribution assigns a score to each tuple. This function returns the \
+    highest score words
+    """
+    lst = nlp(lst)
+    string = " ".join(map(str, lst))
+    words = nltk.word_tokenize(string)
+
+    from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
+
+    measures = TrigramAssocMeasures()
+
+    finder = TrigramCollocationFinder.from_words(words)
+    scores = finder.score_ngrams(measures.student_t)
+
+    scores.sort(key=lambda i:i[1], reverse=True)
+
+    top = scores[:4]
+    best_words = []
+    for i in range(len(top)):
+        best_words += top[i][0]
+    print(best_words)
+student_t_analyze(abstract)
+# LDA model
