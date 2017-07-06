@@ -87,7 +87,7 @@ def nlp(words):
     filtered = []
 
     stopWords = set(stopwords.words('english'))
-    words = [w for w in words if w.lower() not in stopWords]
+    words = [w.lower() for w in words if w.lower() not in stopWords]
     words = [w for w in words if re.match("[a-zA-Z]{2,}", w)]
     words = [re.sub(r'[^\w\s]','',w) for w in words]
     for w in words:
@@ -125,6 +125,37 @@ def show_wordcloud(lst, subset="all", feature="keywords"):
         plt.title("Most common "+feature+" in cluster: "+subset)
     plt.show()
 
+def student_t_analyze(lst):
+    """
+    Uses student_t distribution to analyze a list of words by splitting them into \
+    tuples of 3 elements: eg. (a, b, c), (b, c, d), ...
+
+    The distribution assigns a score to each tuple. This function returns the \
+    highest score words
+    """
+    lst = nlp(lst)
+    string = " ".join(map(str, lst))
+    words = nltk.word_tokenize(string)
+
+    from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
+
+    measures = TrigramAssocMeasures()
+
+    finder = TrigramCollocationFinder.from_words(words)
+    scores = finder.score_ngrams(measures.student_t)
+
+    scores.sort(key=lambda i:i[1], reverse=True)
+
+    top = scores[:10]
+    # best_words = []
+    # for i in range(len(top)):
+    #     best_words += top[i][0]
+
+    print(top)
+# student_t_analyze(abstract)
+# LDA model
+
+
 # given a cluster number, can we find the keywords in the papers in the cluster
 def find_keywords(cluster_number=0, all_=False):
     """
@@ -132,7 +163,7 @@ def find_keywords(cluster_number=0, all_=False):
     keywords assigned to each publication.
 
     Returns one value:
-        1. A list of all keywords
+        1. A list of all keywords (filtered)
     """
     all_words = []
 
@@ -142,7 +173,7 @@ def find_keywords(cluster_number=0, all_=False):
             for k in (select(p.keywords for p in Papers if p.keywords != None)):
                 all_words += k.split(",")
 
-        return all_words
+        return nlp(all_words)
 
     paper_list = organized_by_cluster[cluster_number]
     for paper_id in paper_list:
@@ -155,23 +186,9 @@ def find_keywords(cluster_number=0, all_=False):
             # adds temp to all_words
             all_words += temp
 
-    # returns all words in a list format and in a concatanated string
-    return all_words
+    # returns all words in a nlp'd list
+    return nlp(all_words)
 
-def test_find_keywords():
-    # get all keywords
-    all_keywords = find_keywords(all_=True)
-    # get most common keyword in database
-    most_common(all_keywords, 3)
-    # display wordcloud of all keywords
-    show_wordcloud(all_keywords)
-
-    # get list of keywords for cluster 66
-    keywords_66_list = find_keywords(66)
-    # get most common keyword in cluster 66
-    most_common(keywords_66_list, 3)
-    # display wordcloud of keywords in cluster 66
-    show_wordcloud(keywords_66_list, "66")
 
 def find_titles(cluster_number=0, all_=False):
     """
@@ -208,22 +225,6 @@ def find_titles(cluster_number=0, all_=False):
     # Natural Language Processing + Return
     return nlp(all_title_words)
 
-def test_find_titles():
-    # For entire dataset
-    # Get a list of words in titles (processed)
-    all_t_w_p = find_titles(all_=True)
-    # most common words in titles
-    most_common(all_t_w_p, 7)
-    # shows wordcloud
-    show_wordcloud(all_t_w_p, feature="words in titles")
-
-    # For Cluster 66
-    # Get a list of words in titles in Cluster 66 (processed)
-    all_t_w_p_66 = find_titles(66)
-    # most common words in cluster 66 titles
-    most_common(all_t_w_p_66, 7)
-    # shows wordcloud
-    show_wordcloud(all_t_w_p_66, feature="words in titles", subset="66")
 
 def find_abstract(cluster_number=0, all_=False):
     all_abstract = []
@@ -234,7 +235,6 @@ def find_abstract(cluster_number=0, all_=False):
             all_abstract = select(p.abstract for p in Papers if p.abstract != None and p.abstract != "")[:]
             for a in all_abstract:
                 all_abstract_words += a.split(' ')
-
         # Natural Language Processing + Return
         return nlp(all_abstract_words)
 
@@ -249,35 +249,3 @@ def find_abstract(cluster_number=0, all_=False):
         all_abstract_words += a.split(' ')
 
     return nlp(all_abstract_words)
-
-
-abstract = find_abstract(3390)
-
-def student_t_analyze(lst):
-    """
-    Uses student_t distribution to analyze a list of words by splitting them into \
-    tuples of 3 elements: eg. (a, b, c), (b, c, d), ...
-
-    The distribution assigns a score to each tuple. This function returns the \
-    highest score words
-    """
-    lst = nlp(lst)
-    string = " ".join(map(str, lst))
-    words = nltk.word_tokenize(string)
-
-    from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
-
-    measures = TrigramAssocMeasures()
-
-    finder = TrigramCollocationFinder.from_words(words)
-    scores = finder.score_ngrams(measures.student_t)
-
-    scores.sort(key=lambda i:i[1], reverse=True)
-
-    top = scores[:4]
-    best_words = []
-    for i in range(len(top)):
-        best_words += top[i][0]
-    print(best_words)
-student_t_analyze(abstract)
-# LDA model
