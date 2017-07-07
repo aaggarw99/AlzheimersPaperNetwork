@@ -18,7 +18,6 @@ import re
 df = pd.read_csv("pubmedID_min5clusters_v2.csv", names=['PubID','ClusterNo'])
 organized_by_cluster = []
 
-
 def parse_clustered_publications():
     """
     Stores and dumps a dictionary of all publications to their respective \
@@ -125,34 +124,49 @@ def show_wordcloud(lst, subset="all", feature="keywords"):
         plt.title("Most common "+feature+" in cluster: "+subset)
     plt.show()
 
-def student_t_analyze(lst):
+from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
+
+    
+def ngram_analyze(lst, model="student_t"):
     """
     Uses student_t distribution to analyze a list of words by splitting them into \
     tuples of 3 elements: eg. (a, b, c), (b, c, d), ...
 
     The distribution assigns a score to each tuple. This function returns the \
     highest score words
+
+    Args:
+    lst: a list of words
+    model: the chosen model for ngram analysis (student_t, chi_sq, mi_like, pmi, jaccard)
     """
     lst = nlp(lst)
     string = " ".join(map(str, lst))
     words = nltk.word_tokenize(string)
 
-    from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
-
     measures = TrigramAssocMeasures()
 
     finder = TrigramCollocationFinder.from_words(words)
-    scores = finder.score_ngrams(measures.student_t)
 
+    scores = []
+    
+    if model == "student_t":
+        scores = finder.score_ngrams(measures.student_t)[:]
+    elif model == "chi_sq":
+        scores = finder.score_ngrams(measures.chi_sq)[:]
+
+    elif model == "mi_like":
+        scores = finder.score_ngrams(measures.mi_like)[:]
+    elif model == "pmi":
+        scores = finder.score_ngrams(measures.pmi)[:]
+    elif model == "jaccard":
+        scores = finder.score_ngrams(measures.jaccard)[:]
+    else:
+        print("Not valid model!")
+        
     scores.sort(key=lambda i:i[1], reverse=True)
-
     top = scores[:10]
-    # best_words = []
-    # for i in range(len(top)):
-    #     best_words += top[i][0]
 
     print(top)
-# student_t_analyze(abstract)
 # LDA model
 
 

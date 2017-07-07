@@ -9,7 +9,7 @@ def test_find_keywords():
 
     # display wordcloud of all keywords
     na.show_wordcloud(all_keywords)
-
+    
     # get list of keywords for cluster 66
     keywords_66_list = na.find_keywords(66)
 
@@ -40,12 +40,13 @@ def test_find_titles():
     na.show_wordcloud(all_t_w_p_66, feature="words in titles", subset="66")
 
 def test_find_abstract():
-    # Gets list of filtered words from all abstracts in the database
-    abstract_all = na.find_abstract(all_=True)
-    # Uses student_t distribution and finds most important words in the database
-    na.student_t_analyze(abstract_all)
+    # # Gets list of filtered words from all abstracts in the database
+    # abstract_all = na.find_abstract(all_=True)
+    # # Uses student_t distribution and finds most important words in the database
+    # na.ngram_analyze(abstract_all)
 
     # Gets list of filtered words from cluster 3390
-    abstract_3390 = find_abstract(3395)
+    abstract_3390 = na.find_abstract(3395)
+
     # Uses student_t distribution and finds most import words in cluster 66 abstracts
-    na.student_t_analyze(abstract_3390)
+    na.ngram_analyze(abstract_3390, model="student_t")
