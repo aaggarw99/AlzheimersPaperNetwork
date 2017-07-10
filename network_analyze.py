@@ -65,10 +65,10 @@ class Papers(db_paper.Entity):
     _table_ = "papers"
     id = PrimaryKey(int) # PMCID as integer
     title = Required(str)
-    abstract = Required(str)
-    keywords = Required(str)
-    year = Required(int)
-    month = Required(int)
+    abstract = Optional(str)
+    keywords = Optional(str)
+    year = Optional(int)
+    month = Optional(int)
 
 class Citations(db_paper.Entity):
     _table_ = "paper_citation"
@@ -129,6 +129,9 @@ from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
     
 def ngram_analyze(lst, model="student_t"):
     """
+    Documentation for analysis tools:
+    http://www.nltk.org/_modules/nltk/metrics/association.html
+
     Uses student_t distribution to analyze a list of words by splitting them into \
     tuples of 3 elements: eg. (a, b, c), (b, c, d), ...
 
@@ -241,6 +244,10 @@ def find_titles(cluster_number=0, all_=False):
 
 
 def find_abstract(cluster_number=0, all_=False):
+    """
+    Returns a list of processed words in all of the abstracts for a given cluster number / entire database
+    """
+    
     all_abstract = []
     all_abstract_words = []
 
@@ -263,3 +270,52 @@ def find_abstract(cluster_number=0, all_=False):
         all_abstract_words += a.split(' ')
 
     return nlp(all_abstract_words)
+
+def keyword_in_abstract(k_list, a_list):
+    """
+    Returns a percentage of how often the keywords appear in the abstract
+
+    Args:
+    k_lst: list of keywords
+    a_list: list of words in abstract
+    """
+
+    # removes duplicates in keywords list
+
+    unique_k_list = list(set(k_list))
+    
+    total_keywords = len(unique_k_list)
+    in_abstract = 0
+    for i in range(total_keywords):
+        if unique_k_list[i] in a_list:
+            in_abstract += 1
+            continue
+
+    return (in_abstract / total_keywords)
+
+# work on individual paper functionality
+
+def get_paper_from_id(idx, with_a_k=False):
+    """
+    Returns list of paper attributes as follows:
+    [id, title, abstract, keywords, year, month]
+    
+    Args:
+    idx = id of paper
+    with_a_k = when set to true, will only return paper information if it has an abstract and keywords
+    """
+    with db_session:
+        if with_a_k==False:
+            if (select(p for p in Papers if p.id == idx)[:]):
+                paper = select((p.id, p.title, p.abstract, p.keywords, p.year, p.month) for p in Papers if p.id == idx)[:]
+                return paper[0]
+            else:
+                print("Paper does not exist in the database!")
+                return
+        else:
+            if (select(p for p in Papers if p.id == idx and p.abstract!=None and p.keywords!=None)[:]):
+                paper = select((p.id, p.title, p.abstract, p.keywords, p.year, p.month) for p in Papers if p.id == idx)[:]
+                return paper[0]
+            else:
+                print("The paper requested has either no abstract or keywords")
+                return
