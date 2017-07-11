@@ -1,6 +1,5 @@
 from paper_analysis import PaperAnalysis
 from database import Words, PaperWordCount, Papers, Citations
-from analysis_tools import AnalysisTools
 from pony.orm import *
 import pandas as pd
 import pickle
@@ -54,19 +53,19 @@ class ClusterAnalysis(PaperAnalysis):
 
         # if all keywords are desired
         if cluster_number == -1:
-            all_words = PaperAnalysis.get_keywords(self, -1)
-            return AnalysisTools.nlp(self, all_words)
+            all_words = self.get_keywords(-1)
+            return self.nlp(all_words)
 
         # checks to see if cluster number is valid
         if self.organized_by_cluster[cluster_number]:
             paper_list = self.organized_by_cluster[cluster_number]
             for paper_id in paper_list:
                 # get keywords for each paper
-                temp = PaperAnalysis.get_keywords(self, paper_id)
+                temp = self.get_keywords(paper_id)
                 all_words += temp
 
             # returns all words in a nlp'd list
-            return AnalysisTools.nlp(self, all_words)
+            return self.nlp(all_words)
 
         else:
             print("Cluster number was not found!")
@@ -92,18 +91,18 @@ class ClusterAnalysis(PaperAnalysis):
         # if looking at all cluster information
         if cluster_number == -1:
             with db_session:
-                all_title_words = PaperAnalysis.get_title(self, -1)
+                all_title_words = self.get_title(-1)
 
             # Natural Language Processing + Return
-            return AnalysisTools.nlp(self, all_title_words)
+            return self.nlp(all_title_words)
 
         # if looking at a certain cluster
         paper_list = self.organized_by_cluster[cluster_number]
         for paper_id in paper_list:
-            all_title_words += PaperAnalysis.get_title(self, paper_id)
+            all_title_words += self.get_title(paper_id)
 
         # Natural Language Processing + Return
-        return AnalysisTools.nlp(self, all_title_words)
+        return self.nlp(all_title_words)
 
 
     def find_abstract(self, cluster_number):
@@ -123,14 +122,14 @@ class ClusterAnalysis(PaperAnalysis):
 
         if cluster_number == -1:
             print("test")
-            all_abstract_words = PaperAnalysis.get_abstract(self, -1)
+            all_abstract_words = self.get_abstract(-1)
             # Natural Language Processing + Return
-            return AnalysisTools.nlp(self, all_abstract_words)
+            return self.nlp(all_abstract_words)
 
         paper_list = self.organized_by_cluster[cluster_number]
         for paper_id in paper_list:
-            all_abstract_words += PaperAnalysis.get_abstract(self, paper_id)
+            all_abstract_words += self.get_abstract(paper_id)
 
-        return AnalysisTools.nlp(self, all_abstract_words)    
+        return self.nlp(all_abstract_words)    
 
 
