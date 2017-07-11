@@ -119,8 +119,9 @@ class PaperAnalysis(AnalysisTools):
             with db_session:
                 # check to see if paper id exists in database
                 if (select(p for p in Papers if p.id == idx)[:]):
+                    # returns a list with one element (the  abstract string)
                     abstract = select(p.abstract for p in Papers if p.id == idx and p.abstract!=None and p.abstract!="")[:]
-                    all_abstract_words = abstract.split(' ')
+                    all_abstract_words = abstract[0].split(' ')
 
                     return all_abstract_words
                 else:

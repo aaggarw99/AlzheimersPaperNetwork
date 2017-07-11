@@ -9,6 +9,7 @@ import collections
 from stemming.porter2 import stem
 import re
 import numpy as np
+from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
 
 class AnalysisTools():
     def __init__(self):
@@ -109,9 +110,6 @@ class AnalysisTools():
         else:
             plt.title("Most common "+feature+" in cluster: "+subset)
         plt.show()
-
-    from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
-
 
     def ngram_analyze(self, lst, model="student_t"):
         """
