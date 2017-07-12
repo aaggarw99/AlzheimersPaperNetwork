@@ -26,25 +26,23 @@ class PaperAnalysis():
 
         Return:
         --------
-        List of paper attributes in the following format:
-        [id, title, abstract, keywords, year, month]
+        Paper object attributes in the following format:
+        Paper properties: [id, title, abstract, keywords, year, month]
 
         """
         with db_session:
             if with_a_k==False:
-                if (select(p for p in Papers if p.id == idx)[:]):
-                    paper = select((p.id, p.title, p.abstract, p.keywords, p.year, p.month) for p in Papers if p.id == idx)[:]
-                    return paper[0]
-                else:
-                    print("Paper does not exist in the database!")
-                    return
+                if Papers.get(id=idx):
+                    if Papers.get(id=idx).abstract != None and Papers.get(id=idx).keywords != None:
+                        return Papers.get(id=idx)
+                print("No paper with an abstract or keywords was found")
+                return []
             else:
-                if (select(p for p in Papers if p.id == idx and p.abstract!=None and p.keywords!=None)[:]):
-                    paper = select((p.id, p.title, p.abstract, p.keywords, p.year, p.month) for p in Papers if p.id == idx)[:]
-                    return paper[0]
-                else:
-                    print("The paper requested has either no abstract or keywords")
-                    return
+                if Papers.get(id=idx):
+                    return Papers.get(id=idx)
+                print("No paper was found")
+                return []
+                
 
                 
     def get_keywords(self, idx):
@@ -58,23 +56,21 @@ class PaperAnalysis():
         Return list of keywords
         """
         all_keywords = []
-
-        # look at the entire database keywords
-        if idx == -1:
-            with db_session:
+        with db_session:
+            # look at the entire database keywords
+            if idx == -1:
                 for k in (select(p.keywords for p in Papers if p.keywords != None)):
                     all_keywords += k.split(',')
 
                 return all_keywords
-        
-        with db_session:
-            # check to see if paper id exists in database
-            if (select(p for p in Papers if p.id == idx)[:]):
-                for k in (select(p.keywords for p in Papers if p.id == idx and p.keywords != None)[:]):
-                    all_keywords += k.split(",")
+            if Papers.get(id=idx):
+                
+                keyword_str = Papers.get(id=idx).keywords
+                if keyword_str == None:
+                    return []
+                all_keywords += keyword_str.split(",")
                 return all_keywords
-            else:
-                return []
+            return []
 
     def get_title(self, idx):
         """
@@ -88,26 +84,23 @@ class PaperAnalysis():
         """
         all_title_words = []
 
-        if idx == -1:
-            with db_session:
+        with db_session:
+
+            if idx == -1:
                 all_titles = select(p.title for p in Papers if p.title != None or p.title!="")[:]
                 for t in all_titles:
                     all_title_words += t.split(' ')
 
                 return all_title_words
-            
-        with db_session:
-            # check to see if paper id exists in database
-            if (select(p for p in Papers if p.id == idx)[:]):
-                title = select(p.title for p in Papers if p.id == idx and p.title != None and p.title != "")[:]
-                # if nothing was found, return an empty array. 
-                if title:
-                    return title[0].split()
-                else:
+
+            if Papers.get(id=idx):
+                title_str = Papers.get(id=idx).title
+                if title_str == None:
                     return []
-            else:
-                return []
-                
+                all_title_words += title_str.split(" ")
+                return all_title_words
+            return []
+            
     def get_abstract(self, idx):
         """
         Args:
@@ -120,24 +113,26 @@ class PaperAnalysis():
         """
         all_abstract_words = []
 
-        if idx == -1:
-            with db_session:
+        with db_session:
+            if idx == -1:
                 all_abstract = select(p.abstract for p in Papers if p.abstract != None and p.abstract!="")[:]
                 for a in all_abstract:
                     all_abstract_words += a.split(' ')
                 return all_abstract_words
-        else:    
-            with db_session:
-                # check to see if paper id exists in database
-                if (select(p for p in Papers if p.id == idx)[:]):
-                    # returns a list with one element (the  abstract string)
-                    abstract = select(p.abstract for p in Papers if p.id == idx and p.abstract!=None and p.abstract!="")[:]
-                    all_abstract_words = abstract[0].split(' ')
 
-                    return all_abstract_words
-                else:
+            if Papers.get(id=idx):
+                abstract_str = Papers.get(id=idx).abstract
+                if abstract_str == None:
                     return []
+                all_abstract_words += abstract_str.split(" ")
+                return all_abstract_words
 
+            return []
+
+    def get_citations(self, idx):
+        with db_session:
+            return Citations.get(paper=idx).cited_by
+                
     def keyword_in_abstract(self, k_list, a_list):
         """
         Args:
