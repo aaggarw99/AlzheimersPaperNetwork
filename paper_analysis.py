@@ -133,31 +133,39 @@ class PaperAnalysis():
         with db_session:
             return Citations.get(paper=idx).cited_by
                 
-    def keyword_in_abstract(self, k_list, a_list):
+    def keyword_in_abstract(self, idx):
         """
         Args:
         -----
-        k_lst: list of keywords
-        a_list: list of words in abstract
+        idx: paperID
 
         Return:
         -------
-        Percentage of how often keywords appear in the abstract
+        Percentage of how often keywords appear in the abstract OR -1 if the paper has either no keywords or abstract
         """
 
-        # removes duplicates in keywords list
+        # removes duplicates in keywords list and abstract words list
 
-        unique_k_list = list(set(k_list))
-
-        total_keywords = len(unique_k_list)
+        unique_k = list(set(self.nlp(self.get_keywords(idx))))
+        split_k = []
+        for i in unique_k:
+            split_k += i.split(" ")
+        if not unique_k:
+            return -1
+        unique_a = list(set(self.nlp(self.get_abstract(idx))))
+        if not unique_a:
+            return -1
         in_abstract = 0
-        for i in range(total_keywords):
-            if unique_k_list[i] in a_list:
+        for i in split_k:
+            if i in unique_a:
                 in_abstract += 1
                 continue
 
-        return (in_abstract / total_keywords)
+        return (in_abstract / len(split_k))
 
+
+
+    
     # Natural Word Processing
     def nlp(self, words):
         """

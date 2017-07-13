@@ -16,6 +16,7 @@ class ClusterAnalysis(PaperAnalysis):
             self.parse_clustered_publications()
 
         self.organized_by_cluster = self.get_pickle("organized_dict.pickle")
+        
 
     def parse_clustered_publications(self):
         """
@@ -32,7 +33,8 @@ class ClusterAnalysis(PaperAnalysis):
         pickle.dump(org_dict, open("organized_dict.pickle", "wb"))
 
     def get_pickle(self, filename):
-        return pickle.load(open(filename, "rb"))
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
 
     # given a cluster number, can we find the keywords in the papers in the cluster
     def find_keywords(self, cluster_number):

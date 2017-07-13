@@ -25,6 +25,10 @@ class PaperAnalysisTest(unittest.TestCase):
     def test_get_abstract(self):
         self.assertEqual(self.pa.get_abstract(-5), [])
 
+    def test_keyword_in_abstract(self):
+        self.assertEqual(self.pa.keyword_in_abstract(-1341), -1)
+        self.assertEqual(self.pa.keyword_in_abstract(65010), 0.4)
+
 class ClusterAnalysisTest(unittest.TestCase):
     def setUp(self):
         self.ca =  ClusterAnalysis("pubmedID_min5clusters_v2.csv")
