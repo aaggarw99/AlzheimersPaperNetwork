@@ -10,13 +10,26 @@ from stemming.porter2 import stem
 import re
 import numpy as np
 from nltk.collocations import TrigramAssocMeasures, TrigramCollocationFinder
-
+import itertools
+from collections import Counter
+import pandas as pd
+import os
+import pickle
+import json
 
 class PaperAnalysis():
 
     def __init__(self):
-        pass
-    
+        df = pd.read_csv("pubmedID_min5clusters_v2.csv", names=['PubID', 'CusterNo'])
+        self.min5_ids = df.PubID
+        if not os.path.exists('paper_data.pickle'):
+            self.data = self.get_valid_set()
+            pickle.dump(self.data, open('paper_data.pickle', 'wb'))
+        else:
+            with open('paper_data.pickle', 'rb') as f:
+                with db_session:
+                    self.data = pickle.load(f)
+
     def get_paper_from_id(self, idx, with_a_k=False):
         """
         Args:
@@ -194,6 +207,8 @@ class PaperAnalysis():
                 x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'n')
             else:
                 x = nltk.stem.WordNetLemmatizer().lemmatize(x, 'v')
+            if w == 'alzheimer disease':
+                x = 'alzheimers disease'
             filtered.append(x)
         return filtered
 
@@ -267,7 +282,6 @@ class PaperAnalysis():
             scores = finder.score_ngrams(measures.student_t)[:]
         elif model == "chi_sq":
             scores = finder.score_ngrams(measures.chi_sq)[:]
-
         elif model == "mi_like":
             scores = finder.score_ngrams(measures.mi_like)[:]
         elif model == "pmi":
@@ -278,7 +292,89 @@ class PaperAnalysis():
             print("Not valid model!")
 
         scores.sort(key=lambda i:i[1], reverse=True)
-        top = scores[:10]
-
-        print(top)
+        top = scores[:3]
+        return top
     # LDA model
+
+    def categorize(self):
+        """
+        Categorize based on keywords
+        """
+        summ = 0
+        num = 0
+        
+        cnt = Counter()
+        for paper in self.data:
+            if paper.keywords:
+                keywords = paper.keywords.split(',')
+                summ += len(keywords)
+                num += 1
+                keywords = self.nlp(keywords) 
+                for i in keywords:
+                    cnt[i] +=1
+        from itertools import dropwhile
+
+        for key, count in dropwhile(lambda key_count: key_count[1] > 5, cnt.most_common()):
+            del cnt[key]
+        del cnt['alzheimers disease']
+        del cnt['dementia']
+        print(cnt)
+
+        # for key, count in dropwhile(lambda key_count: key_count[1] <  1500, cnt.most_common()):
+        #     del cnt[key]
+        #print(json.dumps(dict(cnt), indent=4))
+        # print(summ/num)
+        # cnt2 = Counter()
+        # for i in range(4, 4797):
+        #     for j in cnt.values():
+        #         if i == j:
+        #             cnt2[i] += 1
+        # print(json.dumps(dict(cnt2), indent=4))
+                
+        
+                
+
+    def custom_categorize(self):
+        df = pd.DataFrame(columns=['paper_obj', 'abstract', 'n_keywords'])
+        with db_session:
+            paper_list = select(p for p in Papers if p.abstract != None)[:]
+
+        overall_list = []
+        for paper in paper_list:
+            abst_words = self.nlp(paper.abstract.split(' '))
+            custom_keywords_raw = self.ngram_analyze(abst_words)
+            custom_keywords_pro = []
+            for c in custom_keywords_raw:
+                custom_keywords_pro += c
+            # lst = [paper, paper.abstract, ]
+
+    def get_valid_set(self):
+        paper_list_id = []
+        paper_list = []
+        with db_session:
+            for idx in self.min5_ids:
+                if Papers.get(id=np.asscalar(idx)):
+                    if Papers.get(id=np.asscalar(idx)).degree == 0:
+                        paper_list.append(Papers.get(id=np.asscalar(idx)))
+        return paper_list
+
+    def howmany(self):
+        count = 0
+        for paper in self.data:
+            if paper.keywords != None:
+                count+=1 
+        print(count)
+x = PaperAnalysis()
+#x.howmany()
+x.categorize()
+#print((x.data[0].keywords))
+
+# 204816 total amount of papers
+# 106556 papers with keywords
+# 198406 papers with abstracts
+# 105595 papers with both keywords and abstracts
+# 124413 unique keywords
+
+# Using Clustered Info
+# 16118 amount of papers with degree = 0 and belong to clustered info csv
+
